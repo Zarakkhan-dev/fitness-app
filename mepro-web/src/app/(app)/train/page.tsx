@@ -1,13 +1,23 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+
+import { useToast } from '@/providers/toast-provider';
 
 import type { Paged, Workout, YogaRoutine } from '@/lib/types';
 import { formatCalories, formatEnumLabel, formatMinutes } from '@/lib/format';
 import { useApiQuery } from '@/hooks/use-api-query';
 import { usePageTitle } from '@/hooks/use-page-title';
 import { workoutApi, yogaApi } from '@/lib/endpoints';
+import {
+  isLocalId,
+  removeCustomWorkout,
+  removeCustomYoga,
+  useCustomCatalog,
+} from '@/lib/custom-catalog';
+import { FITNESS_LEVELS, WORKOUT_CATEGORIES } from '@/lib/train-options';
+import { AddWorkoutModal, AddYogaModal } from '@/components/train-modals';
 import {
   Button,
   Card,
@@ -17,40 +27,52 @@ import {
   Pill,
   SegmentedTabs,
 } from '@/components/ui';
-import { EmptyState, ErrorState, SkeletonList } from '@/components/states';
+import { EmptyState, ErrorState, InlineNotice, SkeletonList } from '@/components/states';
 import { FadeIn, Stagger, StaggerItem } from '@/components/motion';
 import {
   DumbbellIcon,
   LeafIcon,
   PlayIcon,
+  PlusIcon,
+  TrashIcon,
 } from '@/components/icons';
 
 type Mode = 'workouts' | 'yoga';
 
-const WORKOUT_CATEGORIES = [
-  'chest',
-  'back',
-  'shoulders',
-  'arms',
-  'legs',
-  'core',
-  'cardio',
-  'full_body',
-  'mobility',
-  'balance',
-];
-
-const YOGA_DIFFICULTIES = ['beginner', 'intermediate', 'advanced'];
+/** Case-insensitive "does this entry match the search box" test. */
+function matchesSearch(
+  entry: { title: string; description?: string; category?: string; level?: string; difficulty?: string; muscleGroups?: string[]; equipment?: string[]; focusAreas?: string[] },
+  needle: string,
+): boolean {
+  if (!needle) return true;
+  const haystack = [
+    entry.title,
+    entry.description ?? '',
+    entry.category ?? '',
+    entry.level ?? '',
+    entry.difficulty ?? '',
+    ...(entry.muscleGroups ?? []),
+    ...(entry.equipment ?? []),
+    ...(entry.focusAreas ?? []),
+  ]
+    .join(' ')
+    .toLowerCase();
+  return haystack.includes(needle.toLowerCase());
+}
 
 export default function TrainPage() {
   usePageTitle('Train');
   const router = useRouter();
+  const toast = useToast();
 
   const [mode, setMode] = useState<Mode>('workouts');
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [activeDifficulty, setActiveDifficulty] = useState<string | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
   const [page] = useState(1);
+
+  const catalog = useCustomCatalog();
 
   const workoutsQuery = useApiQuery<Paged<Workout>>(
     () =>
@@ -93,8 +115,46 @@ export default function TrainPage() {
   const refetch =
     mode === 'workouts' ? workoutsQuery.refetch : yogaQuery.refetch;
 
-  const items =
+  // Locally written entries filter here rather than on the server, and always
+  // sit above the catalogue so the user's own work is what they see first.
+  const customItems = useMemo(() => {
+    if (mode === 'workouts') {
+      return catalog.workouts.filter(
+        (workout) =>
+          matchesSearch(workout, search) &&
+          (!activeCategory || workout.category === activeCategory) &&
+          (!activeDifficulty || workout.difficulty === activeDifficulty),
+      );
+    }
+    return catalog.yoga.filter(
+      (routine) =>
+        matchesSearch(routine, search) &&
+        (!activeDifficulty || (routine.level ?? routine.difficulty) === activeDifficulty),
+    );
+  }, [catalog, mode, search, activeCategory, activeDifficulty]);
+
+  const serverItems: (Workout | YogaRoutine)[] =
     mode === 'workouts' ? (workoutsQuery.data?.items ?? []) : (yogaQuery.data?.items ?? []);
+
+  const items: (Workout | YogaRoutine)[] = [...customItems, ...serverItems];
+
+  // The catalogue is optional: an unreachable server must not hide what the
+  // user has written on this device.
+  const showError = !!error && !isLoading && items.length === 0;
+  const showServerNotice = !!error && !isLoading && items.length > 0;
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  function requestDelete(item: Workout | YogaRoutine) {
+    if (confirmDeleteId === item._id) {
+      setConfirmDeleteId(null);
+      if (mode === 'workouts') removeCustomWorkout(item._id);
+      else removeCustomYoga(item._id);
+      toast.success('Removed', `${item.title} was deleted from this device.`);
+      return;
+    }
+    setConfirmDeleteId(item._id);
+    window.setTimeout(() => setConfirmDeleteId((current) => (current === item._id ? null : current)), 4000);
+  }
 
   return (
     <div className="space-y-5">
@@ -108,19 +168,30 @@ export default function TrainPage() {
             Workouts and yoga built from your goals
           </p>
         </div>
-        <SegmentedTabs
-          value={mode}
-          onChange={(v) => {
-            setMode(v);
-            setActiveCategory(null);
-            setActiveDifficulty(null);
-            setSearch('');
-          }}
-          options={[
-            { value: 'workouts', label: 'Workouts' },
-            { value: 'yoga', label: 'Yoga' },
-          ]}
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => setAddOpen(true)}
+          >
+            <PlusIcon className="h-4 w-4" />
+            Add {mode === 'workouts' ? 'workout' : 'yoga'}
+          </Button>
+          <SegmentedTabs
+            value={mode}
+            onChange={(v) => {
+              setMode(v);
+              setActiveCategory(null);
+              setActiveDifficulty(null);
+              setSearch('');
+              setConfirmDeleteId(null);
+            }}
+            options={[
+              { value: 'workouts', label: 'Workouts' },
+              { value: 'yoga', label: 'Yoga' },
+            ]}
+          />
+        </div>
       </FadeIn>
 
       {/* Filter bar */}
@@ -160,7 +231,7 @@ export default function TrainPage() {
               <Chip active={activeDifficulty === null} onClick={() => setActiveDifficulty(null)}>
                 All
               </Chip>
-              {YOGA_DIFFICULTIES.map((diff) => (
+              {FITNESS_LEVELS.map((diff) => (
                 <Chip
                   key={diff}
                   active={activeDifficulty === diff}
@@ -180,11 +251,18 @@ export default function TrainPage() {
         <SkeletonList rows={6} />
       )}
 
-      {error && !isLoading && (
+      {showError && (
         <ErrorState error={error} onRetry={refetch} />
       )}
 
-      {!isLoading && !error && items.length === 0 && (
+      {showServerNotice && (
+        <InlineNotice
+          tone="warning"
+          message="Cannot reach the server, so only your saved workouts are shown."
+        />
+      )}
+
+      {!isLoading && !showError && items.length === 0 && (
         <EmptyState
           title={mode === 'workouts' ? 'No workouts found' : 'No yoga sequences found'}
           message="Try adjusting your filters or search terms."
@@ -192,7 +270,7 @@ export default function TrainPage() {
         />
       )}
 
-      {!isLoading && !error && items.length > 0 && (
+      {!isLoading && !showError && items.length > 0 && (
         <Stagger className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {mode === 'workouts' &&
             (items as Workout[]).map((workout) => (
@@ -203,6 +281,7 @@ export default function TrainPage() {
                       {workout.title}
                     </h3>
                     <div className="flex flex-wrap items-center justify-end gap-1.5">
+                      {isLocalId(workout._id) && <Pill tone="brand">Mine</Pill>}
                       {workout.category && (
                         <EnumPill value={workout.category} />
                       )}
@@ -247,6 +326,18 @@ export default function TrainPage() {
                     >
                       Quick start
                     </Button>
+                    {isLocalId(workout._id) && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="ml-auto text-sub hover:text-danger"
+                        aria-label={`Delete ${workout.title}`}
+                        onClick={() => requestDelete(workout)}
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                        {confirmDeleteId === workout._id ? 'Sure?' : 'Delete'}
+                      </Button>
+                    )}
                   </div>
                 </Card>
               </StaggerItem>
@@ -261,6 +352,7 @@ export default function TrainPage() {
                       {yoga.title}
                     </h3>
                     <div className="flex flex-wrap items-center justify-end gap-1.5">
+                      {isLocalId(yoga._id) && <Pill tone="brand">Mine</Pill>}
                       {(yoga.level || yoga.difficulty) && (
                         <Pill tone="neutral">
                           {formatEnumLabel(yoga.level || yoga.difficulty)}
@@ -302,6 +394,18 @@ export default function TrainPage() {
                     >
                       Start session
                     </Button>
+                    {isLocalId(yoga._id) && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="ml-auto text-sub hover:text-danger"
+                        aria-label={`Delete ${yoga.title}`}
+                        onClick={() => requestDelete(yoga)}
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                        {confirmDeleteId === yoga._id ? 'Sure?' : 'Delete'}
+                      </Button>
+                    )}
                   </div>
                 </Card>
               </StaggerItem>
@@ -315,6 +419,12 @@ export default function TrainPage() {
             Load more
           </Button>
         </div>
+      )}
+
+      {mode === 'workouts' ? (
+        <AddWorkoutModal open={addOpen} onClose={() => setAddOpen(false)} />
+      ) : (
+        <AddYogaModal open={addOpen} onClose={() => setAddOpen(false)} />
       )}
     </div>
   );

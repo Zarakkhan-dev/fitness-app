@@ -131,7 +131,6 @@ export interface CustomWorkoutInput {
 }
 
 export function addCustomWorkout(input: CustomWorkoutInput): Workout {
-  const now = new Date().toISOString();
   const workout: Workout = {
     _id: newLocalId(),
     slug: slugify(input.title),

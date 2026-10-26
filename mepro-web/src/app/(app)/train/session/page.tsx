@@ -7,6 +7,7 @@ import type { Workout, WorkoutSession, WorkoutStartResult, YogaRoutine } from '@
 import { formatMinutes } from '@/lib/format';
 import { elapsedSessionMinutes } from '@/lib/session-math';
 import { ApiError } from '@/lib/api';
+import { getCustomWorkout, getCustomYoga, isLocalId } from '@/lib/custom-catalog';
 import { useApiQuery } from '@/hooks/use-api-query';
 import { usePageTitle } from '@/hooks/use-page-title';
 import { useToast } from '@/providers/toast-provider';
@@ -94,13 +95,13 @@ function SessionContent() {
   const workoutDetailQuery = useApiQuery<Workout>(
     () => workoutApi.detail(workoutId!),
     [workoutId],
-    { enabled: !!workoutId && !workout },
+    { enabled: !!workoutId && !workout && !isLocalId(workoutId) },
   );
 
   const yogaDetailQuery = useApiQuery<YogaRoutine>(
     () => yogaApi.detail(yogaId!),
     [yogaId],
-    { enabled: !!yogaId && !yoga },
+    { enabled: !!yogaId && !yoga && !isLocalId(yogaId) },
   );
 
   // Load session if sessionId provided
@@ -136,7 +137,7 @@ function SessionContent() {
   useEffect(() => {
     async function init() {
       if (session || starting || completing) return;
-      if (kind === 'workout' && workoutId && workout) {
+      if (kind === 'workout' && workoutId && workout && !isLocalId(workoutId)) {
         try {
           const active = await workoutApi.activeSession().catch(() => null);
           if (active && active.workoutId === workoutId && active.status === 'in_progress') {
@@ -160,6 +161,51 @@ function SessionContent() {
   useEffect(() => {
     async function startIfNeeded() {
       if (session || starting || completing || !kind) return;
+
+      // A `local-` entry is already on the device, so its session starts right
+      // away without the API — which is the point of writing your own routine.
+      if (isLocalId(workoutId)) {
+        const local = getCustomWorkout(workoutId!);
+        if (!local) {
+          setError(new Error('This workout is no longer saved on this device.'));
+          return;
+        }
+        setWorkout(local);
+        setSession({
+          _id: 'local-session',
+          workoutId,
+          title: local.title,
+          startedAt: new Date().toISOString(),
+          status: 'in_progress',
+          exercisesTotal: local.exercises?.length ?? 0,
+          exercisesCompleted: 0,
+        } as WorkoutSession);
+        setStartedAtMs(Date.now());
+        setElapsedSeconds(0);
+        return;
+      }
+
+      if (isLocalId(yogaId)) {
+        const local = getCustomYoga(yogaId!);
+        if (!local) {
+          setError(new Error('This routine is no longer saved on this device.'));
+          return;
+        }
+        setYoga(local);
+        setSession({
+          _id: 'local-session',
+          yogaId,
+          title: local.title,
+          startedAt: new Date().toISOString(),
+          status: 'in_progress',
+          exercisesTotal: local.asanas?.length ?? 0,
+          exercisesCompleted: 0,
+        } as WorkoutSession);
+        setStartedAtMs(Date.now());
+        setElapsedSeconds(0);
+        return;
+      }
+
       if (kind === 'workout' && workoutId) {
         if (workoutDetailQuery.isLoading) return;
         setStarting(true);
@@ -274,6 +320,12 @@ function SessionContent() {
     setError(null);
     try {
       const durationMinutes = elapsedSessionMinutes(session?.startedAt, new Date());
+      if (isLocalId(workoutId) || isLocalId(yogaId)) {
+        // Nothing to persist server-side: the routine itself lives on device.
+        toast.success('Session complete', 'Kept on this device — no server needed.');
+        router.push('/train');
+        return;
+      }
       if (kind === 'workout' && workoutId) {
         await workoutApi.completeSession(workoutId, {
           durationMinutes,
@@ -302,7 +354,7 @@ function SessionContent() {
     if (abandoning || !session?._id) return;
     setAbandoning(true);
     try {
-      if (kind === 'workout') {
+      if (kind === 'workout' && !isLocalId(workoutId)) {
         await workoutApi.abandonSession(session._id);
       }
       toast.success('Session abandoned');

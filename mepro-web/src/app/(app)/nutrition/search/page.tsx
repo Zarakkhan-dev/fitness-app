@@ -255,7 +255,8 @@ function SearchContent() {
       <LogFoodModal
         open={customOpen}
         onClose={() => setCustomOpen(false)}
-        defaultMeal={mealType}
+        mealType={mealType}
+        onMealChange={setMealOverride}
         onSaved={() => setSuccessNotice(true)}
       />
     </PageBody>

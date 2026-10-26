@@ -27,6 +27,7 @@ export default function NutritionPage() {
   const toast = useToast();
 
   const [quickLogOpen, setQuickLogOpen] = useState(false);
+  const [quickLogMeal, setQuickLogMeal] = useState('breakfast');
 
   const nutritionQuery = useApiQuery<NutritionToday>(
     () => nutritionApi.today(),
@@ -329,6 +330,8 @@ export default function NutritionPage() {
       <LogFoodModal
         open={quickLogOpen}
         onClose={() => setQuickLogOpen(false)}
+        mealType={quickLogMeal}
+        onMealChange={setQuickLogMeal}
         onSaved={() => nutritionQuery.refetch()}
       />
 

@@ -6,7 +6,7 @@
  * never surprises the user.
  */
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 import { ApiError } from '@/lib/api';
 import { hydrationApi, nutritionApi, userApi } from '@/lib/endpoints';
@@ -27,19 +27,21 @@ const PRESETS = [250, 500, 750];
 export function LogFoodModal({
   open,
   onClose,
-  defaultMeal = 'breakfast',
+  mealType,
+  onMealChange,
   onSaved,
 }: {
   open: boolean;
   onClose: () => void;
-  defaultMeal?: string;
+  /** Controlled by the page so the header meal picker and the modal agree. */
+  mealType: string;
+  onMealChange: (meal: string) => void;
   onSaved?: () => void;
 }) {
   const toast = useToast();
   const [foodName, setFoodName] = useState('');
   const [quantity, setQuantity] = useState('1');
   const [unit, setUnit] = useState('serving');
-  const [mealType, setMealType] = useState(defaultMeal);
   const [calories, setCalories] = useState('0');
   const [proteinG, setProteinG] = useState('0');
   const [carbsG, setCarbsG] = useState('0');
@@ -47,11 +49,6 @@ export function LogFoodModal({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-
-  // The meal picker on the page can change while the modal is closed.
-  useEffect(() => {
-    if (open) setMealType(defaultMeal);
-  }, [open, defaultMeal]);
 
   const parsedQuantity = Number(quantity);
   const macroValues = [calories, proteinG, carbsG, fatG].map(Number);
@@ -150,7 +147,7 @@ export function LogFoodModal({
           />
         </div>
 
-        <Select label="Meal" value={mealType} onChange={(event) => setMealType(event.target.value)}>
+        <Select label="Meal" value={mealType} onChange={(event) => onMealChange(event.target.value)}>
           {MEAL_ORDER.map((meal) => (
             <option key={meal} value={meal}>
               {formatEnumLabel(meal)}

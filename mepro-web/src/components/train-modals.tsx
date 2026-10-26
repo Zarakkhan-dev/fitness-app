@@ -9,7 +9,7 @@
  * the backend is down.
  */
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 import {
   addCustomWorkout,

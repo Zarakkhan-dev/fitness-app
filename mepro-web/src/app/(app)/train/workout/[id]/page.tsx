@@ -8,6 +8,7 @@ import { formatCalories, formatEnumLabel, formatMinutes } from '@/lib/format';
 import { useApiQuery } from '@/hooks/use-api-query';
 import { usePageTitle } from '@/hooks/use-page-title';
 import { workoutApi } from '@/lib/endpoints';
+import { isLocalId, useCustomCatalog } from '@/lib/custom-catalog';
 import {
   Button,
   Card,
@@ -42,24 +43,32 @@ export default function WorkoutDetailPage() {
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const router = useRouter();
 
+  const catalog = useCustomCatalog();
+  // A `local-` id is answered from the device, so a routine the user wrote
+  // opens even when the API is unreachable.
+  const localWorkout = isLocalId(id)
+    ? catalog.workouts.find((entry) => entry._id === id)
+    : undefined;
+
   const workoutQuery = useApiQuery<Workout>(
     () => workoutApi.detail(id),
     [id],
-    { enabled: !!id },
+    { enabled: !!id && !isLocalId(id) },
   );
 
-  usePageTitle(workoutQuery.data?.title || 'Workout');
+  usePageTitle((localWorkout ?? workoutQuery.data)?.title || 'Workout');
 
-  const workout = workoutQuery.data;
+  const workout = isLocalId(id) ? localWorkout ?? null : workoutQuery.data;
 
-  const isLoading = workoutQuery.isLoading && !workoutQuery.data;
-  const error = workoutQuery.error && !workoutQuery.data ? workoutQuery.error : null;
+  const isLoading = !isLocalId(id) && workoutQuery.isLoading && !workoutQuery.data;
+  const error =
+    !isLocalId(id) && workoutQuery.error && !workoutQuery.data ? workoutQuery.error : null;
 
   if (isLoading) {
     return <SkeletonList rows={4} />;
   }
 
-  if (error && !workoutQuery.data) {
+  if (error && !workout) {
     return <ErrorState error={error} onRetry={workoutQuery.refetch} />;
   }
 
@@ -96,6 +105,7 @@ export default function WorkoutDetailPage() {
                 {workout.title}
               </h1>
               <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                {isLocalId(workout._id) && <Pill tone="brand">Mine</Pill>}
                 {workout.category && <EnumPill value={workout.category} />}
                 {workout.difficulty && (
                   <Pill tone="neutral">{formatEnumLabel(workout.difficulty)}</Pill>

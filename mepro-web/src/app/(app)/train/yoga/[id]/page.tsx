@@ -8,6 +8,7 @@ import { formatEnumLabel, formatMinutes } from '@/lib/format';
 import { useApiQuery } from '@/hooks/use-api-query';
 import { usePageTitle } from '@/hooks/use-page-title';
 import { yogaApi } from '@/lib/endpoints';
+import { isLocalId, useCustomCatalog } from '@/lib/custom-catalog';
 import {
   Button,
   Card,
@@ -22,23 +23,30 @@ export default function YogaDetailPage() {
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const router = useRouter();
 
+  const catalog = useCustomCatalog();
+  // A `local-` id is answered from the device, so a routine the user wrote
+  // opens even when the API is unreachable.
+  const localRoutine = isLocalId(id)
+    ? catalog.yoga.find((entry) => entry._id === id)
+    : undefined;
+
   const yogaQuery = useApiQuery<YogaRoutine>(
     () => yogaApi.detail(id),
     [id],
-    { enabled: !!id },
+    { enabled: !!id && !isLocalId(id) },
   );
 
-  const yoga = yogaQuery.data;
+  const yoga = isLocalId(id) ? localRoutine ?? null : yogaQuery.data;
   usePageTitle(yoga?.title || 'Yoga');
 
-  const isLoading = yogaQuery.isLoading && !yogaQuery.data;
-  const error = yogaQuery.error && !yogaQuery.data ? yogaQuery.error : null;
+  const isLoading = !isLocalId(id) && yogaQuery.isLoading && !yogaQuery.data;
+  const error = !isLocalId(id) && yogaQuery.error && !yogaQuery.data ? yogaQuery.error : null;
 
   if (isLoading) {
     return <SkeletonList rows={4} />;
   }
 
-  if (error && !yogaQuery.data) {
+  if (error && !yoga) {
     return <ErrorState error={error} onRetry={yogaQuery.refetch} />;
   }
 
@@ -75,6 +83,7 @@ export default function YogaDetailPage() {
                 {yoga.title}
               </h1>
               <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                {isLocalId(yoga._id) && <Pill tone="brand">Mine</Pill>}
                 {(yoga.level || yoga.difficulty) && (
                   <Pill tone="neutral">
                     {formatEnumLabel(yoga.level || yoga.difficulty)}
