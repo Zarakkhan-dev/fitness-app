@@ -6,18 +6,206 @@
  * never surprises the user.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { ApiError } from '@/lib/api';
-import { hydrationApi, userApi } from '@/lib/endpoints';
-import { formatVolume } from '@/lib/format';
+import { hydrationApi, nutritionApi, userApi } from '@/lib/endpoints';
+import { formatEnumLabel, formatVolume, MEAL_ORDER } from '@/lib/format';
 import { useApiQuery } from '@/hooks/use-api-query';
 import { useToast } from '@/providers/toast-provider';
-import { Button, Field, Modal } from '@/components/ui';
+import { Button, Field, Modal, Select } from '@/components/ui';
 import { InlineNotice } from '@/components/states';
 import { DropIcon, ScaleIcon } from '@/components/icons';
 
 const PRESETS = [250, 500, 750];
+
+/**
+ * Logs a hand-entered food. The macro inputs are the totals for the amount
+ * being logged, so nothing is scaled by 100 g — that is why this is separate
+ * from the catalogue search flow.
+ */
+export function LogFoodModal({
+  open,
+  onClose,
+  defaultMeal = 'breakfast',
+  onSaved,
+}: {
+  open: boolean;
+  onClose: () => void;
+  defaultMeal?: string;
+  onSaved?: () => void;
+}) {
+  const toast = useToast();
+  const [foodName, setFoodName] = useState('');
+  const [quantity, setQuantity] = useState('1');
+  const [unit, setUnit] = useState('serving');
+  const [mealType, setMealType] = useState(defaultMeal);
+  const [calories, setCalories] = useState('0');
+  const [proteinG, setProteinG] = useState('0');
+  const [carbsG, setCarbsG] = useState('0');
+  const [fatG, setFatG] = useState('0');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  // The meal picker on the page can change while the modal is closed.
+  useEffect(() => {
+    if (open) setMealType(defaultMeal);
+  }, [open, defaultMeal]);
+
+  const parsedQuantity = Number(quantity);
+  const macroValues = [calories, proteinG, carbsG, fatG].map(Number);
+  const valid =
+    foodName.trim().length > 0 &&
+    Number.isFinite(parsedQuantity) &&
+    parsedQuantity > 0 &&
+    macroValues.every((value) => Number.isFinite(value) && value >= 0);
+
+  function close() {
+    setFoodName('');
+    setQuantity('1');
+    setUnit('serving');
+    setCalories('0');
+    setProteinG('0');
+    setCarbsG('0');
+    setFatG('0');
+    setError(null);
+    setFieldErrors({});
+    onClose();
+  }
+
+  async function save() {
+    if (!valid || busy) return;
+    setBusy(true);
+    setError(null);
+    setFieldErrors({});
+    try {
+      await nutritionApi.logCustomFood({
+        foodName: foodName.trim(),
+        mealType,
+        quantity: parsedQuantity,
+        unit: unit.trim() || 'serving',
+        calories: Number(calories),
+        proteinG: Number(proteinG),
+        carbsG: Number(carbsG),
+        fatG: Number(fatG),
+      });
+      toast.success(`Logged ${foodName.trim()}`);
+      onSaved?.();
+      close();
+    } catch (cause) {
+      if (cause instanceof ApiError) {
+        setFieldErrors(cause.fieldErrors);
+        setError(cause.message);
+      } else {
+        setError('Could not log food.');
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal
+      open={open}
+      onClose={close}
+      title="Log food"
+      footer={
+        <>
+          <Button variant="ghost" onClick={close} disabled={busy}>
+            Cancel
+          </Button>
+          <Button onClick={() => void save()} loading={busy} disabled={!valid}>
+            Log food
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-3">
+        {error ? <InlineNotice tone="error" message={error} /> : null}
+
+        <Field
+          label="Food name"
+          value={foodName}
+          onChange={(event) => setFoodName(event.target.value)}
+          error={fieldErrors.foodName || fieldErrors.name}
+          autoFocus
+        />
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field
+            label="Quantity"
+            type="number"
+            min="0.1"
+            step="0.1"
+            value={quantity}
+            onChange={(event) => setQuantity(event.target.value)}
+            error={fieldErrors.quantity}
+          />
+          <Field
+            label="Unit"
+            value={unit}
+            onChange={(event) => setUnit(event.target.value)}
+            error={fieldErrors.unit}
+          />
+        </div>
+
+        <Select label="Meal" value={mealType} onChange={(event) => setMealType(event.target.value)}>
+          {MEAL_ORDER.map((meal) => (
+            <option key={meal} value={meal}>
+              {formatEnumLabel(meal)}
+            </option>
+          ))}
+        </Select>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field
+            label="Calories"
+            type="number"
+            min="0"
+            value={calories}
+            onChange={(event) => setCalories(event.target.value)}
+            error={fieldErrors.calories}
+          />
+          <Field
+            label="Protein (g)"
+            type="number"
+            min="0"
+            step="0.1"
+            value={proteinG}
+            onChange={(event) => setProteinG(event.target.value)}
+            error={fieldErrors.proteinG}
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field
+            label="Carbs (g)"
+            type="number"
+            min="0"
+            step="0.1"
+            value={carbsG}
+            onChange={(event) => setCarbsG(event.target.value)}
+            error={fieldErrors.carbsG}
+          />
+          <Field
+            label="Fat (g)"
+            type="number"
+            min="0"
+            step="0.1"
+            value={fatG}
+            onChange={(event) => setFatG(event.target.value)}
+            error={fieldErrors.fatG}
+          />
+        </div>
+
+        <p className="text-[11.5px] text-mute">
+          These values are the totals for the amount logged above.
+        </p>
+      </div>
+    </Modal>
+  );
+}
 
 export function LogWaterModal({
   open,

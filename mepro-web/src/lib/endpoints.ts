@@ -257,6 +257,28 @@ export const nutritionApi = {
     return api.post<FoodLog>('/nutrition/food-logs', payload);
   },
 
+  /**
+   * Logs a hand-entered food (no catalogue id). The macro values are the totals
+   * for the amount being logged, so nothing is scaled per 100 g.
+   */
+  async logCustomFood(payload: {
+    foodName: string;
+    mealType: string;
+    quantity?: number;
+    unit?: string;
+    calories: number;
+    proteinG?: number;
+    carbsG?: number;
+    fatG?: number;
+    fiberG?: number;
+    sugarG?: number;
+    sodiumMg?: number;
+    eatenAt?: string;
+    notes?: string;
+  }): Promise<FoodLog> {
+    return api.post<FoodLog>('/nutrition/food-logs/custom', payload);
+  },
+
   async updateFoodLog(id: string, patch: Record<string, unknown>): Promise<FoodLog> {
     return api.patch<FoodLog>(`/nutrition/food-logs/${id}`, patch);
   },

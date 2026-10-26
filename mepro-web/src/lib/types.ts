@@ -401,7 +401,9 @@ export interface FoodLog extends Id {
   day: string;
   eatenAt?: string;
   mealType: string;
-  foodId?: string;
+  foodId?: string | null;
+  /** `custom` when the user typed the macros instead of picking a Food row. */
+  source?: 'catalogue' | 'custom';
   foodName: string;
   foodLocalName?: string;
   foodCategory?: string;

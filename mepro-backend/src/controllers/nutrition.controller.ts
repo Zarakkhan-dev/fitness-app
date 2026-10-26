@@ -3,7 +3,7 @@ import * as nutritionService from '../services/nutrition.service';
 import { sendCreated, sendPaginated, sendSuccess } from '../utils/response';
 import { getValidatedQuery } from '../middleware/validation.middleware';
 import { ApiError } from '../utils/ApiError';
-import type { CreateFoodLogInput, FoodSearchQuery } from '../services/nutrition.service';
+import type { CreateCustomFoodLogInput, CreateFoodLogInput, FoodSearchQuery } from '../services/nutrition.service';
 import { routeParam } from '../utils/http';
 
 export async function searchFoods(req: Request, res: Response): Promise<Response> {
@@ -31,6 +31,14 @@ export async function getCategories(req: Request, res: Response): Promise<Respon
 
 export async function createFoodLog(req: Request, res: Response): Promise<Response> {
   const log = await nutritionService.createFoodLog(req.user!.id, req.body as CreateFoodLogInput);
+  return sendCreated(res, log, 'Food logged');
+}
+
+export async function createCustomFoodLog(req: Request, res: Response): Promise<Response> {
+  const log = await nutritionService.createCustomFoodLog(
+    req.user!.id,
+    req.body as CreateCustomFoodLogInput,
+  );
   return sendCreated(res, log, 'Food logged');
 }
 

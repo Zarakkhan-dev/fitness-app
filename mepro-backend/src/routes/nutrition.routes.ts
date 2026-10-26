@@ -4,6 +4,7 @@ import { validate } from '../middleware/validation.middleware';
 import { requireAuth } from '../middleware/auth.middleware';
 import {
   createFoodLogSchema,
+  customFoodLogSchema,
   dateRangeQuerySchema,
   dayQuerySchema,
   foodLogQuerySchema,
@@ -24,6 +25,11 @@ router.get('/foods/:id', validate({ params: idParamSchema }), controller.getFood
 // The user's own food logs.
 router.get('/food-logs', validate({ query: foodLogQuerySchema }), controller.listFoodLogs);
 router.post('/food-logs', validate({ body: createFoodLogSchema }), controller.createFoodLog);
+router.post(
+  '/food-logs/custom',
+  validate({ body: customFoodLogSchema }),
+  controller.createCustomFoodLog,
+);
 router.patch('/food-logs/:id', validate({ params: idParamSchema, body: updateFoodLogSchema }), controller.updateFoodLog);
 router.delete('/food-logs/:id', validate({ params: idParamSchema }), controller.deleteFoodLog);
 

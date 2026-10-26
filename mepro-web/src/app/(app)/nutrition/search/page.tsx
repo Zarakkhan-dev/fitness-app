@@ -21,6 +21,7 @@ import {
 } from '@/components/ui';
 import { EmptyState, ErrorState, InlineNotice, SkeletonList } from '@/components/states';
 import { FadeIn, PageBody, Stagger, StaggerItem } from '@/components/motion';
+import { LogFoodModal } from '@/components/log-modals';
 import { ChevronLeftIcon, SearchIcon, CloseIcon, PlusIcon } from '@/components/icons';
 
 function SearchContent() {
@@ -37,6 +38,7 @@ function SearchContent() {
   const [page] = useState(1);
   const [selected, setSelected] = useState<Food | null>(null);
   const [logOpen, setLogOpen] = useState(false);
+  const [customOpen, setCustomOpen] = useState(false);
   const [quantity, setQuantity] = useState('1');
   const [unit, setUnit] = useState('serving');
   const [busy, setBusy] = useState(false);
@@ -109,6 +111,10 @@ function SearchContent() {
               </option>
             ))}
           </Select>
+          <Button variant="secondary" size="sm" onClick={() => setCustomOpen(true)}>
+            <PlusIcon className="h-4 w-4" />
+            Add food
+          </Button>
         </div>
       </FadeIn>
 
@@ -149,14 +155,17 @@ function SearchContent() {
       {debouncedQuery.length < 2 ? (
         <EmptyState
           title="Start searching"
-          message="Type at least 2 characters to search our food database."
+          message="Type at least 2 characters to search our food database, or add your own food."
         />
       ) : searchQuery.isLoading ? (
         <SkeletonList rows={5} />
       ) : searchQuery.error ? (
         <ErrorState error={searchQuery.error} onRetry={searchQuery.refetch} />
       ) : foods.length === 0 ? (
-        <EmptyState title="No foods match" message={`No results for "${debouncedQuery}"`} />
+        <EmptyState
+          title="No foods match"
+          message={`No results for "${debouncedQuery}". Use Add food to log it yourself.`}
+        />
       ) : (
         <Stagger className="space-y-3">
           {foods.map((food) => (
@@ -242,6 +251,13 @@ function SearchContent() {
           </Select>
         </div>
       </Modal>
+
+      <LogFoodModal
+        open={customOpen}
+        onClose={() => setCustomOpen(false)}
+        defaultMeal={mealType}
+        onSaved={() => setSuccessNotice(true)}
+      />
     </PageBody>
   );
 }

@@ -30,6 +30,11 @@ export const createLog = async (req: Request, res: Response): Promise<Response> 
   return sendCreated(res, log, 'Food logged');
 };
 
+export const createCustomLog = async (req: Request, res: Response): Promise<Response> => {
+  const log = await nutritionService.createCustomFoodLog(req.user!.id, req.body);
+  return sendCreated(res, log, 'Food logged');
+};
+
 export const updateLog = async (req: Request, res: Response): Promise<Response> => {
   const log = await nutritionService.updateFoodLog(req.user!.id, routeParam(req, 'id'), req.body);
   return sendSuccess(res, log, 'Food log updated');

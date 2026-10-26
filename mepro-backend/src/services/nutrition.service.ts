@@ -311,6 +311,11 @@ export async function updateFoodLog(
     log.servingName = resolvedName;
     log.grams = grams;
     log.nutrition = scaleNutrition(food as FoodRow, grams);
+  } else if (log.source === 'custom' || !log.foodId) {
+    // Custom logs carry their own totals, so a portion change only updates the
+    // label; there are no per-100 g values to rescale from.
+    if (input.servings !== undefined) log.servings = input.servings;
+    if (input.servingName !== undefined) log.servingName = input.servingName;
   } else if (input.servings !== undefined || input.grams !== undefined || input.servingName !== undefined) {
     const food = await Food.findById(log.foodId).lean();
     if (!food) throw ApiError.notFound('Food not found for this log');

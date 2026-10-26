@@ -14,12 +14,10 @@ import type { NutritionToday, HydrationToday, ProgressSummary, FoodLog } from '@
 import {
   Button,
   Card,
-  Field,
-  Modal,
-  Select,
   ProgressBar,
 } from '@/components/ui';
-import { ErrorState, InlineNotice, SkeletonList } from '@/components/states';
+import { ErrorState, SkeletonList } from '@/components/states';
+import { LogFoodModal } from '@/components/log-modals';
 import { MacroBar, ProgressRing, TrendChart } from '@/components/charts';
 import { FadeIn, PageBody, Stagger, StaggerItem } from '@/components/motion';
 import { DropIcon, SearchIcon, TrashIcon } from '@/components/icons';
@@ -29,16 +27,6 @@ export default function NutritionPage() {
   const toast = useToast();
 
   const [quickLogOpen, setQuickLogOpen] = useState(false);
-  const [foodName, setFoodName] = useState('');
-  const [quantity, setQuantity] = useState('1');
-  const [unit, setUnit] = useState('serving');
-  const [mealType, setMealType] = useState('breakfast');
-  const [calories, setCalories] = useState('0');
-  const [proteinG, setProteinG] = useState('0');
-  const [carbsG, setCarbsG] = useState('0');
-  const [fatG, setFatG] = useState('0');
-  const [busy, setBusy] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const nutritionQuery = useApiQuery<NutritionToday>(
     () => nutritionApi.today(),
@@ -78,28 +66,6 @@ export default function NutritionPage() {
     }
   };
 
-  const handleQuickLog = async () => {
-    setBusy(true);
-    setFieldErrors({});
-    try {
-      // API expects foodId for logFood; quick custom log not exposed. Show success as per UX.
-      toast.success(`Logged ${foodName || 'food'}`);
-      setQuickLogOpen(false);
-      nutritionQuery.refetch();
-    } catch (cause) {
-      if (cause instanceof ApiError) {
-        setFieldErrors(cause.fieldErrors);
-        if (Object.keys(cause.fieldErrors).length === 0) {
-          toast.error(cause.message);
-        }
-      } else {
-        toast.error('Could not log food.');
-      }
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const nutrition = nutritionQuery.data;
   const hydration = hydrationQuery.data;
 
@@ -135,70 +101,7 @@ export default function NutritionPage() {
       <PageBody className="space-y-4">
         <div className="card h-28" />
         <SkeletonList rows={4} />
-      
-      <Modal
-        open={quickLogOpen}
-        onClose={() => setQuickLogOpen(false)}
-        title="Log food"
-        footer={
-          <>
-            <Button variant="ghost" onClick={() => setQuickLogOpen(false)} disabled={busy}>
-              Cancel
-            </Button>
-            <Button onClick={() => void handleQuickLog()} loading={busy}>
-              Log
-            </Button>
-          </>
-        }
-      >
-        <div className="space-y-3">
-          {Object.keys(fieldErrors).length > 0 ? (
-            <InlineNotice tone="error" message={Object.values(fieldErrors).join(', ')} />
-          ) : null}
-          <Field
-            label="Food name"
-            value={foodName}
-            onChange={(e) => setFoodName(e.target.value)}
-            error={fieldErrors.name || fieldErrors.foodName}
-          />
-          <div className="grid grid-cols-2 gap-3">
-            <Field
-              label="Quantity"
-              type="number"
-              min="0.1"
-              step="0.1"
-              value={quantity}
-              onChange={(e) => setQuantity(e.target.value)}
-            />
-            <Field
-              label="Unit"
-              value={unit}
-              onChange={(e) => setUnit(e.target.value)}
-            />
-          </div>
-          <Select
-            label="Meal"
-            value={mealType}
-            onChange={(e) => setMealType(e.target.value)}
-          >
-            {MEAL_ORDER.map((m) => (
-              <option key={m} value={m}>
-                {formatEnumLabel(m)}
-              </option>
-            ))}
-          </Select>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Calories" type="number" value={calories} onChange={(e) => setCalories(e.target.value)} />
-            <Field label="Protein (g)" type="number" value={proteinG} onChange={(e) => setProteinG(e.target.value)} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Carbs (g)" type="number" value={carbsG} onChange={(e) => setCarbsG(e.target.value)} />
-            <Field label="Fat (g)" type="number" value={fatG} onChange={(e) => setFatG(e.target.value)} />
-          </div>
-        </div>
-      </Modal>
-
-    </PageBody>
+      </PageBody>
     );
   }
 
@@ -206,70 +109,7 @@ export default function NutritionPage() {
     return (
       <PageBody>
         <ErrorState error={nutritionQuery.error} onRetry={nutritionQuery.refetch} />
-      
-      <Modal
-        open={quickLogOpen}
-        onClose={() => setQuickLogOpen(false)}
-        title="Log food"
-        footer={
-          <>
-            <Button variant="ghost" onClick={() => setQuickLogOpen(false)} disabled={busy}>
-              Cancel
-            </Button>
-            <Button onClick={() => void handleQuickLog()} loading={busy}>
-              Log
-            </Button>
-          </>
-        }
-      >
-        <div className="space-y-3">
-          {Object.keys(fieldErrors).length > 0 ? (
-            <InlineNotice tone="error" message={Object.values(fieldErrors).join(', ')} />
-          ) : null}
-          <Field
-            label="Food name"
-            value={foodName}
-            onChange={(e) => setFoodName(e.target.value)}
-            error={fieldErrors.name || fieldErrors.foodName}
-          />
-          <div className="grid grid-cols-2 gap-3">
-            <Field
-              label="Quantity"
-              type="number"
-              min="0.1"
-              step="0.1"
-              value={quantity}
-              onChange={(e) => setQuantity(e.target.value)}
-            />
-            <Field
-              label="Unit"
-              value={unit}
-              onChange={(e) => setUnit(e.target.value)}
-            />
-          </div>
-          <Select
-            label="Meal"
-            value={mealType}
-            onChange={(e) => setMealType(e.target.value)}
-          >
-            {MEAL_ORDER.map((m) => (
-              <option key={m} value={m}>
-                {formatEnumLabel(m)}
-              </option>
-            ))}
-          </Select>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Calories" type="number" value={calories} onChange={(e) => setCalories(e.target.value)} />
-            <Field label="Protein (g)" type="number" value={proteinG} onChange={(e) => setProteinG(e.target.value)} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Carbs (g)" type="number" value={carbsG} onChange={(e) => setCarbsG(e.target.value)} />
-            <Field label="Fat (g)" type="number" value={fatG} onChange={(e) => setFatG(e.target.value)} />
-          </div>
-        </div>
-      </Modal>
-
-    </PageBody>
+      </PageBody>
     );
   }
 
@@ -486,67 +326,11 @@ export default function NutritionPage() {
         </Card>
       ) : null}
     
-      <Modal
+      <LogFoodModal
         open={quickLogOpen}
         onClose={() => setQuickLogOpen(false)}
-        title="Log food"
-        footer={
-          <>
-            <Button variant="ghost" onClick={() => setQuickLogOpen(false)} disabled={busy}>
-              Cancel
-            </Button>
-            <Button onClick={() => void handleQuickLog()} loading={busy}>
-              Log
-            </Button>
-          </>
-        }
-      >
-        <div className="space-y-3">
-          {Object.keys(fieldErrors).length > 0 ? (
-            <InlineNotice tone="error" message={Object.values(fieldErrors).join(', ')} />
-          ) : null}
-          <Field
-            label="Food name"
-            value={foodName}
-            onChange={(e) => setFoodName(e.target.value)}
-            error={fieldErrors.name || fieldErrors.foodName}
-          />
-          <div className="grid grid-cols-2 gap-3">
-            <Field
-              label="Quantity"
-              type="number"
-              min="0.1"
-              step="0.1"
-              value={quantity}
-              onChange={(e) => setQuantity(e.target.value)}
-            />
-            <Field
-              label="Unit"
-              value={unit}
-              onChange={(e) => setUnit(e.target.value)}
-            />
-          </div>
-          <Select
-            label="Meal"
-            value={mealType}
-            onChange={(e) => setMealType(e.target.value)}
-          >
-            {MEAL_ORDER.map((m) => (
-              <option key={m} value={m}>
-                {formatEnumLabel(m)}
-              </option>
-            ))}
-          </Select>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Calories" type="number" value={calories} onChange={(e) => setCalories(e.target.value)} />
-            <Field label="Protein (g)" type="number" value={proteinG} onChange={(e) => setProteinG(e.target.value)} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Carbs (g)" type="number" value={carbsG} onChange={(e) => setCarbsG(e.target.value)} />
-            <Field label="Fat (g)" type="number" value={fatG} onChange={(e) => setFatG(e.target.value)} />
-          </div>
-        </div>
-      </Modal>
+        onSaved={() => nutritionQuery.refetch()}
+      />
 
     </PageBody>
   );
