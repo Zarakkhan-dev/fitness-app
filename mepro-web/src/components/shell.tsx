@@ -457,11 +457,19 @@ export function Shell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-dvh bg-canvas">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:rounded-lg focus:bg-surface focus:px-3 focus:py-2 focus:text-[13px] focus:font-semibold focus:text-ink focus:shadow-card"
+      >
+        Skip to main content
+      </a>
       <Sidebar />
       <MobileDrawer open={menuOpen} onClose={() => setMenuOpen(false)} />
       <div className="lg:pl-60">
         <Topbar onOpenMenu={() => setMenuOpen(true)} />
-        <main className="mx-auto w-full  px-4 pt-6 pb-28 sm:px-6 lg:pb-14">{children}</main>
+        <main id="main-content" className="mx-auto w-full px-4 pt-6 pb-28 sm:px-6 lg:pb-14">
+          {children}
+        </main>
       </div>
       <BottomNav />
     </div>

@@ -52,7 +52,7 @@ export function Button({
     <button
       disabled={disabled || loading}
       className={cn(
-        'inline-flex items-center justify-center font-semibold transition-all select-none',
+        'inline-flex items-center justify-center font-semibold transition-all select-none cursor-pointer',
         'disabled:cursor-not-allowed disabled:opacity-55',
         sizes,
         BUTTON_VARIANTS[variant],
@@ -209,10 +209,10 @@ export function Chip({
   className?: string;
 }) {
   if (!onClick) {
-    return <span className={cn('chip', className)}>{children}</span>;
+    return <span className={cn('chip cursor-pointer', className)}>{children}</span>;
   }
   return (
-    <button type="button" data-active={active} onClick={onClick} className={cn('chip', className)}>
+    <button type="button" data-active={active} onClick={onClick} className={cn('chip cursor-pointer', className)}>
       {children}
     </button>
   );
