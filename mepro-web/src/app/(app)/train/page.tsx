@@ -258,7 +258,11 @@ export default function TrainPage() {
       {showServerNotice && (
         <InlineNotice
           tone="warning"
-          message="Cannot reach the server, so only your saved workouts are shown."
+          message={
+            mode === 'workouts'
+              ? 'Cannot reach the server — showing the workouts you saved on this device.'
+              : 'Cannot reach the server — showing the yoga routines you saved on this device.'
+          }
         />
       )}
 

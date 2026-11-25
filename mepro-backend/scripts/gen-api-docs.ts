@@ -98,6 +98,7 @@ const SUMMARY: Record<string, string> = {
   'GET /api/nutrition/foods/:id': 'One food with its nutrition per 100 g',
   'GET /api/nutrition/food-logs': 'Food log entries',
   'POST /api/nutrition/food-logs': 'Log a food; recomputes the day totals',
+  'POST /api/nutrition/food-logs/custom': 'Log a hand-entered food with its own macros',
   'PATCH /api/nutrition/food-logs/:id': 'Update a logged food',
   'DELETE /api/nutrition/food-logs/:id': 'Delete a logged food',
   'GET /api/nutrition/today': 'Today\'s totals against targets',
@@ -112,6 +113,7 @@ const SUMMARY: Record<string, string> = {
   'GET /api/foods/:id': 'One food (alias)',
   'GET /api/foods/logs/all': 'All food logs (alias)',
   'POST /api/foods/logs': 'Log a food (alias)',
+  'POST /api/foods/logs/custom': 'Log a hand-entered food (alias)',
   'PATCH /api/foods/logs/:id': 'Update a logged food (alias)',
   'DELETE /api/foods/logs/:id': 'Delete a logged food (alias)',
   // hydration

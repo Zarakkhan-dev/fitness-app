@@ -295,7 +295,9 @@ function SessionContent() {
   const progressPercent = totalExercises > 0 ? (completedCount / totalExercises) * 100 : 0;
 
   const currentExercise = exercises[currentExerciseIndex];
-  const allDone = totalExercises > 0 && completedCount === totalExercises;
+  // A routine with nothing logged in is not "unfinished" — there is simply
+  // nothing to step through, so it can be finished straight away.
+  const allDone = totalExercises > 0 ? completedCount === totalExercises : !!session;
 
   const handleLogSet = () => {
     if (!currentExercise) return;
