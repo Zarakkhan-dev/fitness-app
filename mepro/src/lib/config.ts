@@ -17,7 +17,7 @@ const DEFAULT_PORT = 5000;
  * host. Android emulators reach the host through 10.0.2.2.
  */
 export function defaultApiHost(): string {
-  return Platform.OS === 'android' ? 'https://sprinkler-washbowl-sibling.ngrok-free.dev' : 'https://sprinkler-washbowl-sibling.ngrok-free.dev';
+  return Platform.OS === 'android' ? 'https://mepro-backend.onrender.com' : 'https://mepro-backend.onrender.com';
 }
 
 /** Trailing slashes would produce `//auth/login` once paths are joined. */
@@ -30,7 +30,7 @@ function resolveBaseUrl(): string {
   // non-default deployment can be pointed at any host.
   const configured =
     (Constants.expoConfig?.extra as { apiUrl?: string } | undefined)?.apiUrl ??
-    'https://sprinkler-washbowl-sibling.ngrok-free.dev/api';
+    'https://mepro-backend.onrender.com/api';
   if (configured) return normalise(configured);
   return normalise(`http://${defaultApiHost()}:${DEFAULT_PORT}/api`);
 }
